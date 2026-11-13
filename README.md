@@ -115,8 +115,9 @@ Resulting images land in
 * `neura-image-minimal-neura-x86-64.wic` — partitioned GPT disk image
   (EFI system partition with grub-efi + ext4 root), what the boot test boots,
 * `neura-image-minimal-neura-x86-64.wic.zst` / `.wic.bmap`,
-* `Image-bzImage-neura-x86-64.bin` / `bzImage` and the kernel modules,
-* OVMF firmware files (`ovmf.bin` etc.) used by the boot test.
+* `bzImage` / `Image-bzImage-neura-x86-64.bin` and the kernel modules,
+* OVMF firmware (`ovmf.qcow2`, `ovmf.code.qcow2`, `ovmf.vars.qcow2`) used by
+  the boot test.
 
 ## QEMU boot test (0.1 acceptance)
 
@@ -124,13 +125,23 @@ The image is a full GPT disk booted by its own grub-efi through OVMF, so it is
 started the way a real x86-64 PC boots it - QEMU is not given `-kernel`:
 
 ```bash
-runqemu neura-x86-64 wic qemuboot nographic
+cd ~/NEURA-build/build-neura
+. ../openembedded-core-wrynose/oe-init-build-env .
+runqemu neura-x86-64 nographic serial wic ovmf
 ```
 
-(`runqemu` reads the `QB_*` settings exported with the image. The plain `.wic`
-is used on purpose: `runqemu` refuses compressed `.zst` images unless snapshot
-mode is enabled.) Acceptance: GRUB → systemd → `systemd` reaches
-`multi-user.target` and a root login shell appears on the serial console.
+This is the same invocation the OpenEmbedded self-tests use for EFI `wic`
+images (`meta/lib/oeqa/selftest/cases/efibootpartition.py`). `runqemu` takes
+the machine's `QB_*` settings from the `.qemuboot.conf` deployed with the
+image and boots the `ovmf.qcow2` firmware deployed by the `ovmf` recipe, which
+the machine pulls in through `EXTRA_IMAGEDEPENDS`. The plain `.wic` is used on
+purpose: `runqemu` refuses compressed `.zst` images unless snapshot mode is
+enabled. Exit the session with `Ctrl-a x`.
+
+Acceptance: GRUB → systemd reaches `multi-user.target` and a root shell is
+available on the serial console (autologin is enabled in the development
+image), with no emergency mode and no failed critical units for the root
+filesystem.
 
 ## Kernel: how AIlinux is integrated
 
