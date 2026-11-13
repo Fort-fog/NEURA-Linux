@@ -63,6 +63,21 @@ other interactive workloads, so `BB_NUMBER_THREADS`/`PARALLEL_MAKE` are capped
 to 4 in the build template. Raise them when the host has free memory
 (`free -m`).
 
+Network note: on the current NEURA build host `downloads.yoctoproject.org` and
+`sources.yoctoproject.org` are not reachable, so the **uninative** tarball
+cannot be downloaded and BitBake logs
+`WARNING: Failed to fetch URL http://downloads.yoctoproject.org/releases/uninative/...`.
+That is not fatal - OpenEmbedded simply continues without the uninative
+preload, which only reduces shared-state reuse. `git://git.yoctoproject.org/`
+*is* reachable, so `pseudo` and `patch` are fetched from their git sources.
+Other upstreams that are unreachable from this host (`gmplib.org`,
+`download.samba.org`, `sourceware.org`, `libarchive.org`) are covered by the
+`MIRRORS` table of OpenEmbedded, which redirects them to reachable mirrors;
+each of these still logs a `WARNING: Failed to fetch URL ..., attempting
+MIRRORS`. A build log full of those warnings on this host is expected and is
+not an error - a genuinely missing download shows up as an `ERROR` and a failed
+`do_fetch` instead.
+
 ## Layout
 
 ```
@@ -127,16 +142,18 @@ started the way a real x86-64 PC boots it - QEMU is not given `-kernel`:
 ```bash
 cd ~/NEURA-build/build-neura
 . ../openembedded-core-wrynose/oe-init-build-env .
-runqemu neura-x86-64 nographic serial wic ovmf
+runqemu neura-x86-64 nographic serial wic ovmf kvm
 ```
 
 This is the same invocation the OpenEmbedded self-tests use for EFI `wic`
-images (`meta/lib/oeqa/selftest/cases/efibootpartition.py`). `runqemu` takes
-the machine's `QB_*` settings from the `.qemuboot.conf` deployed with the
-image and boots the `ovmf.qcow2` firmware deployed by the `ovmf` recipe, which
-the machine pulls in through `EXTRA_IMAGEDEPENDS`. The plain `.wic` is used on
-purpose: `runqemu` refuses compressed `.zst` images unless snapshot mode is
-enabled. Exit the session with `Ctrl-a x`.
+images (`meta/lib/oeqa/selftest/cases/efibootpartition.py`); `kvm` is optional
+and only works where `/dev/kvm` is usable, without it QEMU runs the image
+under emulation. `runqemu` takes the machine's `QB_*` settings from the
+`.qemuboot.conf` deployed with the image and boots the `ovmf.qcow2` firmware
+deployed by the `ovmf` recipe, which the machine pulls in through
+`EXTRA_IMAGEDEPENDS`. The plain `.wic` is used on purpose: `runqemu` refuses
+compressed `.zst` images unless snapshot mode is enabled. Exit the session
+with `Ctrl-a x`.
 
 Acceptance: GRUB → systemd reaches `multi-user.target` and a root shell is
 available on the serial console (autologin is enabled in the development
