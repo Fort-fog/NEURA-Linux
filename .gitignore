@@ -1,0 +1,10 @@
+# Build output.  NEURA builds are normally started in a separate directory
+# (e.g. ../NEURA-build/build-neura); these patterns keep stray in-tree builds
+# out of the repository.
+build*/
+downloads/
+sstate-cache/
+
+# Editor / tool leftovers
+*~
+*.swp

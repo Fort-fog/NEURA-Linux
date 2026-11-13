@@ -1,0 +1,21 @@
+# BBPATH Configuration for NEURA Linux (Yocto 6.0 "wrynose") builds.
+#
+# This file is copied to <builddir>/conf/bblayers.conf by oe-init-build-env.
+# The OEROOT placeholder token below is substituted by oe-setup-builddir with
+# the path of the openembedded-core checkout; no other placeholders are
+# supported, so the two non-oe-core layers are written as paths relative to it
+# or absolute.
+
+# Checkout of the NEURA-Linux repository (this repository).  Adjust this single
+# line if the repository lives elsewhere, or use
+#   bitbake-layers add-layer /path/to/NEURA-Linux/meta-neura
+NEURA_BASE ?= "/home/monk/NEURA-Linux"
+
+# meta-yocto-bsp is only needed for its generic x86 machine includes
+# (conf/machine/include/genericx86-common.inc); meta-poky is not used because
+# the NEURA distro is "neura", not "poky".
+BBLAYERS ?= " \
+  ##OEROOT##/meta \
+  ##OEROOT##/../meta-yocto-wrynose/meta-yocto-bsp \
+  ${NEURA_BASE}/meta-neura \
+  "

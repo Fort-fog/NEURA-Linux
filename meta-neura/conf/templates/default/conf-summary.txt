@@ -1,0 +1,15 @@
+NEURA Linux 0.1 (wrynose baseline)
+==================================
+
+Template for NEURA Linux build directories.
+
+Distro : neura            (meta-neura/conf/distro/neura.conf)
+Machine: neura-x86-64      (meta-neura/conf/machine/neura-x86-64.conf)
+Kernel : linux-neura       (Fort-fog/AIlinux, pinned SRCREV)
+
+Layers are listed in conf/bblayers.conf; adjust NEURA_BASE there if the
+NEURA-Linux repository is checked out somewhere else.
+
+Start with:
+    bitbake neura-image-minimal
+and see README.md in the NEURA-Linux repository for the full command sequence.

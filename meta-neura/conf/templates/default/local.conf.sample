@@ -1,0 +1,25 @@
+# NEURA Linux build configuration (Yocto 6.0 "wrynose").
+#
+# Copied to <builddir>/conf/local.conf by oe-init-build-env when the build
+# directory is created.  Distro-wide settings live in
+# meta-neura/conf/distro/neura.conf; this file carries machine and build-host
+# settings only.
+
+# NEURA distro and machine (meta-neura/conf/distro/neura.conf,
+# meta-neura/conf/machine/neura-x86-64.conf).
+DISTRO ?= "neura"
+MACHINE ??= "neura-x86-64"
+
+# --- build host limits ---------------------------------------------------
+# The NEURA build host is Ubuntu 24.04 x86-64 (AMD Ryzen 7 5700X, 16 threads,
+# 64 GB RAM) that also runs interactive workloads, so "available" memory can be
+# a few GB even though the machine has 32 GB of swap as a safety net.  BitBake
+# would otherwise use all 16 threads for task scheduling and 16 compiler jobs
+# per task, which pushes the host into swap-heavy builds, so parallelism is
+# capped.  Raise these once the host has the memory headroom (check
+# `free -m` before a big build).
+BB_NUMBER_THREADS = "4"
+PARALLEL_MAKE = "-j 4"
+
+# DL_DIR and SSTATE_DIR keep their defaults (inside the build directory), so a
+# build directory can be removed and re-created without losing downloads.
