@@ -29,7 +29,16 @@ KBRANCH = "master"
 SRCREV = "9d66f26fefacebfeed15de31c1123451a17ff119"
 LINUX_VERSION = "7.4.0-rc2"
 
-S = "${WORKDIR}/git"
+# Yocto 6.0 unpacks a git source into ${UNPACKDIR}/${BB_GIT_DEFAULT_DESTSUFFIX}
+# and bitbake.conf sets S = "${UNPACKDIR}/${BP}", which is exactly that
+# directory, so the old `S = "${WORKDIR}/git"` assignment is now rejected
+# outright by do_qa_unpack (meta/classes-global/insane.bbclass).  Stating
+# ${UNPACKDIR}/${BP} keeps the recipe independent of the default value:
+# kernel.bbclass' do_symlink_kernsrc then moves the tree to
+# ${STAGING_KERNEL_DIR} (a per-recipe directory, because
+# KERNEL_PACKAGE_NAME != PN here) and symlinks ${S} back at it - the supported
+# route for kernel recipes that do not inherit kernel-yocto.
+S = "${UNPACKDIR}/${BP}"
 
 # Base configuration, taken from the kernel tree itself.
 KBASE_CONFIG = "x86_64_defconfig"
