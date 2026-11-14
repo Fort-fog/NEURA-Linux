@@ -10,7 +10,14 @@ Role separation in this project:
 | <https://github.com/Fort-fog/AIlinux> | the **NEURA kernel source** (a Linux 7.4 tree). The kernel is *not* copied into this repository and is *not* replaced by `linux-yocto` or a vendor kernel. |
 | <https://github.com/Fort-fog/NEURA-Linux> (this repository) | the **distro**: the `meta-neura` layer, distro/machine configuration, kernel recipe and configuration fragments, image recipes, build infrastructure. |
 
-## Current stage: `NEURA 0.1 Boot`
+## Current stage: `NEURA 0.1 Boot` — achieved
+
+The acceptance test below was run against the image built from this branch and
+passed: UEFI/OVMF → grub-efi → AIlinux kernel `7.4.0-rc2-g9d66f26fefac` →
+systemd on `multi-user.target` with `systemctl is-system-running` = `running`,
+zero failed units, ext4 root on `sda2`, root shell on `ttyS0`, clean
+`poweroff` (full console log:
+`build-neura/neura-boot-test-01.log`).
 
 Goal of this stage (and nothing beyond it):
 
@@ -125,14 +132,36 @@ layers. `NEURA_BASE` there points at the NEURA-Linux checkout; adjust that one
 line (or use `bitbake-layers add-layer`) if the repository lives elsewhere.
 
 Resulting images land in
-`build-neura/tmp/deploy/images/neura-x86-64/`:
+`build-neura/tmp/deploy/images/neura-x86-64/` (every artifact exists both under
+a timestamped name and as an unsuffixed symlink, e.g.
+`neura-image-minimal-neura-x86-64.rootfs.wic`):
 
-* `neura-image-minimal-neura-x86-64.wic` — partitioned GPT disk image
-  (EFI system partition with grub-efi + ext4 root), what the boot test boots,
-* `neura-image-minimal-neura-x86-64.wic.zst` / `.wic.bmap`,
-* `bzImage` / `Image-bzImage-neura-x86-64.bin` and the kernel modules,
+* `neura-image-minimal-neura-x86-64.rootfs.wic` — partitioned GPT disk image
+  (EFI system partition with grub-efi + ext4 root + swap), what the boot test
+  boots; 460821504 bytes apparent, ~223 MB on disk (sparse file),
+* `…rootfs.wic.zst` / `…rootfs.wic.bmap` / `…rootfs.manifest` (the 260 packages
+  of the root filesystem) / `…rootfs.qemuboot.conf`,
+* `bzImage-neura-x86-64.bin` (the deployed kernel; `bzImage` is the symlink),
+  `modules-neura-x86-64.tgz`, `System.map-7.4.0-rc2-g9d66f26fefac`,
 * OVMF firmware (`ovmf.qcow2`, `ovmf.code.qcow2`, `ovmf.vars.qcow2`) used by
   the boot test.
+
+The kernel version carries the pinned `SRCREV` (`CONFIG_LOCALVERSION` is set by
+the `kernel` class): `7.4.0-rc2-g9d66f26fefac`, which is what `uname -r` reports
+in the running image.
+
+Build evidence for this branch (log: `build-neura/neura-build-03.log`):
+
+```
+NOTE: Tasks Summary: Attempted 4614 tasks of which 2144 didn't need to be
+                       rerun and all succeeded.
+Summary: There were 3 WARNING messages.
+```
+
+`grep -cE '^ERROR'` on that log is `0`. The three warnings are the expected
+`Failed to fetch URL … attempting MIRRORS` cases for `ca-certificates`,
+`socat` and `libsdl2-native` described under [Build host](#build-host); all
+three tarballs were recovered from the mirrors and the tasks succeeded.
 
 ## QEMU boot test (0.1 acceptance)
 
@@ -142,23 +171,55 @@ started the way a real x86-64 PC boots it - QEMU is not given `-kernel`:
 ```bash
 cd ~/NEURA-build/build-neura
 . ../openembedded-core-wrynose/oe-init-build-env .
-runqemu neura-x86-64 nographic serial wic ovmf kvm
+runqemu neura-x86-64 nographic serial wic ovmf kvm slirp snapshot
 ```
 
-This is the same invocation the OpenEmbedded self-tests use for EFI `wic`
-images (`meta/lib/oeqa/selftest/cases/efibootpartition.py`); `kvm` is optional
-and only works where `/dev/kvm` is usable, without it QEMU runs the image
-under emulation. `runqemu` takes the machine's `QB_*` settings from the
-`.qemuboot.conf` deployed with the image and boots the `ovmf.qcow2` firmware
-deployed by the `ovmf` recipe, which the machine pulls in through
-`EXTRA_IMAGEDEPENDS`. The plain `.wic` is used on purpose: `runqemu` refuses
-compressed `.zst` images unless snapshot mode is enabled. Exit the session
-with `Ctrl-a x`.
+`slirp` selects QEMU user-mode networking, which needs no root privilege;
+without it `runqemu` sets up a tap device through `sudo runqemu-ifup` and fails
+on a host without sudo (`Setting up tap device failed`). `snapshot` keeps the
+deployed `.wic` pristine (QEMU `-snapshot`) and is also required for the
+`.zst` variant. `kvm` is optional and only works where `/dev/kvm` is usable,
+without it QEMU runs the image under emulation. `runqemu` takes the machine's
+`QB_*` settings from the `.qemuboot.conf` deployed with the image and boots the
+`ovmf.qcow2` firmware deployed by the `ovmf` recipe, which the machine pulls in
+through `EXTRA_IMAGEDEPENDS`. The plain `.wic` is used on purpose: `runqemu`
+refuses compressed `.zst` images unless snapshot mode is enabled. Exit the
+session with `Ctrl-a x`.
 
-Acceptance: GRUB → systemd reaches `multi-user.target` and a root shell is
-available on the serial console (autologin is enabled in the development
-image), with no emergency mode and no failed critical units for the root
-filesystem.
+`runqemu` can also be driven directly from the deployed configuration, which
+avoids any machine-name ambiguity:
+
+```bash
+runqemu tmp/deploy/images/neura-x86-64/neura-image-minimal-neura-x86-64.rootfs.qemuboot.conf \
+    nographic serial ovmf kvm slirp snapshot
+```
+
+Result of the acceptance run (console log kept on this build host as
+`build-neura/neura-boot-test-01.log`, next to the build logs; the build
+directory itself is not part of the repository):
+
+```
+NEURA Linux 0.1 neura-x86-64 ttyS0
+root@neura-x86-64:~# uname -a
+Linux neura-x86-64 7.4.0-rc2-g9d66f26fefac #1 SMP PREEMPT_DYNAMIC … x86_64 GNU/Linux
+# /etc/os-release: ID=neura, NAME="NEURA Linux", VERSION="0.1 (boot)"
+# /proc/cmdline:   BOOT_IMAGE=/bzImage root=PARTUUID=… rootwait rootfstype=ext4
+#                  console=ttyS0,115200 console=tty0
+systemctl get-default        -> multi-user.target
+systemctl is-system-running  -> running
+systemctl list-units --failed -> 0 loaded units listed
+lsblk                        -> sda1 /boot (ESP), sda2 /, sda3 [SWAP]
+poweroff                     -> systemd-shutdown: Powering off / reboot: Power down
+```
+
+12 services were running (systemd-udevd, systemd-networkd, systemd-resolved,
+systemd-logind, systemd-timesyncd, dbus, two gettys, journal/klog/syslog).
+Basic Ethernet DHCP already works in 0.1 through systemd-networkd and the stock
+`/usr/lib/systemd/network/80-wired.network`; stage 2 replaces that with
+NetworkManager and adds Wi-Fi. Boot warnings observed were benign and
+documented: missing `regulatory.db` (a consequence of deferring
+`linux-firmware`), no BPF/cgroup firewalling support in the 0.1 config,
+`busybox-syslog` empty `OPTIONS`, and QEMU slirp "martian source" noise.
 
 ## Kernel: how AIlinux is integrated
 
@@ -215,15 +276,24 @@ changes do not have to be rediscovered:
   `empty-root-password`, `allow-empty-password`, `allow-root-login` and
   `serial-autologin-root`. The 0.1 image uses those (development only - a
   release image must not).
-* `UNPACKDIR` (not `${WORKDIR}`) is where `file://` sources land.
+* `UNPACKDIR` (not `${WORKDIR}`) is where `file://` sources land. `bitbake.conf`
+  now sets `S = "${UNPACKDIR}/${BP}"` and `do_qa_unpack` in
+  `meta/classes-global/insane.bbclass` fails the build for a recipe that still
+  assigns `S = "${WORKDIR}/git"`; `linux-neura` therefore states
+  `S = "${UNPACKDIR}/${BP}"` explicitly. The `kernel` class overrides `S` with
+  `STAGING_KERNEL_DIR` and its `do_symlink_kernsrc` moves the unpacked tree
+  there and symlinks `${S}` back - the supported route for a kernel recipe that
+  does not inherit `kernel-yocto`.
 
 ## Roadmap
 
-1. **0.1 Boot** — this stage.
+1. **0.1 Boot** — this stage, done (kernel from `AIlinux`, boots under
+   QEMU/UEFI, systemd + login shell).
 2. Networking: NetworkManager, Ethernet DHCP, Wi-Fi (iwd) + `linux-firmware`,
    saved-network auto-connect. Wi-Fi NIC drivers go into
    `neura-hardware.cfg`; `MACHINE_EXTRA_RRECOMMENDS:remove = "linux-firmware"`
-   in the machine conf is dropped again at this stage.
+   in the machine conf is dropped again at this stage. The
+   `regulatory.db`/Wi-Fi-firmware warnings from the 0.1 boot disappear here.
 3. Wayland desktop: wlroots/labwc, Mesa (amdgpu), Waybar, input, clipboard,
    screenshots, locker.
 4. Audio and remaining user tools.
