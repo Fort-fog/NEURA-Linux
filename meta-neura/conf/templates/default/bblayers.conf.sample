@@ -3,19 +3,31 @@
 # This file is copied to <builddir>/conf/bblayers.conf by oe-init-build-env.
 # The OEROOT placeholder token below is substituted by oe-setup-builddir with
 # the path of the openembedded-core checkout; no other placeholders are
-# supported, so the two non-oe-core layers are written as paths relative to it
-# or absolute.
+# supported, so the other layers are written as paths relative to it or
+# absolute.
 
 # Checkout of the NEURA-Linux repository (this repository).  Adjust this single
 # line if the repository lives elsewhere, or use
 #   bitbake-layers add-layer /path/to/NEURA-Linux/meta-neura
 NEURA_BASE ?= "/home/monk/NEURA-Linux"
 
-# meta-yocto-bsp is only needed for its generic x86 machine includes
-# (conf/machine/include/genericx86-common.inc); meta-poky is not used because
-# the NEURA distro is "neura", not "poky".
+# Layer set:
+#   meta              - OE-Core: bitbake.conf defaults, world recipes, the
+#                       NEURA build's glibc/gcc/systemd/linux-firmware, ...
+#   meta-yocto-bsp    - only for its generic x86 machine includes
+#                       (conf/machine/include/genericx86-common.inc);
+#                       meta-poky is not used because the NEURA distro is
+#                       "neura", not "poky"
+#   meta-networking   - NetworkManager (recipes-connectivity/networkmanager)
+#   meta-python       - required by meta-networking (LAYERDEPENDS_networking-layer)
+#   meta-oe           - iwd (recipes-connectivity/iwd), the Wi-Fi backend
+#                       NetworkManager is configured to use; also required by
+#                       meta-networking
 BBLAYERS ?= " \
   ##OEROOT##/meta \
   ##OEROOT##/../meta-yocto-wrynose/meta-yocto-bsp \
+  ##OEROOT##/../meta-openembedded-wrynose/meta-oe \
+  ##OEROOT##/../meta-openembedded-wrynose/meta-python \
+  ##OEROOT##/../meta-openembedded-wrynose/meta-networking \
   ${NEURA_BASE}/meta-neura \
   "

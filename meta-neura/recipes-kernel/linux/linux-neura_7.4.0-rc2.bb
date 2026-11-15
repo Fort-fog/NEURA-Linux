@@ -47,6 +47,9 @@ SRC_URI = "git://github.com/Fort-fog/AIlinux.git;protocol=https;branch=${KBRANCH
 SRC_URI += " \
     file://neura-boot.cfg \
     file://neura-hardware.cfg \
+    file://neura-wifi.cfg \
+    file://neura-live.cfg \
+    file://neura-iwd.cfg \
 "
 
 # arch/x86 objtool links against libelf (same native dependency the OE x86
@@ -62,5 +65,8 @@ do_configure:prepend() {
     ${S}/scripts/kconfig/merge_config.sh -m -O ${B} \
         ${S}/arch/x86/configs/${KBASE_CONFIG} \
         ${UNPACKDIR}/neura-boot.cfg \
-        ${UNPACKDIR}/neura-hardware.cfg
+        ${UNPACKDIR}/neura-hardware.cfg \
+        ${UNPACKDIR}/neura-wifi.cfg \
+        ${UNPACKDIR}/neura-live.cfg \
+        ${UNPACKDIR}/neura-iwd.cfg
 }
